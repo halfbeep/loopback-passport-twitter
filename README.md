@@ -1,3 +1,5 @@
+copy of std loopback assport implementation for end points to post/get Tweets
+
 # loopback-example-passport
 
 A tutorial for setting up a basic passport example.
@@ -179,3 +181,6 @@ $ node .
 ---
 
 [More LoopBack examples](https://loopback.io/doc/en/lb3/Tutorials-and-examples.html)
+=======
+# loopback-passport-twitter
+
