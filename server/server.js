@@ -17,11 +17,13 @@ var passportConfigurator = new PassportConfigurator(app);
 
 // Shaun 3 July 2018
 // added http modules to get Tweets
+const OAuth = require('oauth');
 const http = require('http')
 const https = require('https')
 
 let this_oauth_token = 'blank_auth_toke'
 let this_oauth_verifier = 'blank_auth_verifier'
+let responseStr = 'Completed Request - [AUTHORISED TWEETS to SHOW HERE]';
 
 /*
  * body-parser is a piece of express middleware that
@@ -114,68 +116,10 @@ app.get('/privacy', function(req, res, next) {
   });
 });
 
-const callback = function (resObjServer) {ensureLoggedIn('/login')
-
-    const {statusCode} = resObjServer;
-
-    const contentType = resObjServer.headers['Content-type']
-
-    let error
-
-    if (statusCode !== 200) {
-        error = new Error('Request Failed.\n' +
-            `Status Code: ${statusCode}`)
-
-    } else if (!/^application\/json/.test(contentType)) {
-        error = new Error('Invalid content-type.\n' +
-            `Expected application/json but received ${contentType}`)
-
-    }
-    if (error) {
-
-        console.error(error.message);
-
-        console.error(error);
-
-        // res.send(error);
-
-        // consume response data to free up memory
-        resObjServer.resume();
-
-        return;
-
-    }
-
-
-    resObjServer.setEncoding('utf8');
-
-    let rawData = '';
-
-    resObjServer.on('data', (chunk) => {
-        rawData += chunk;
-    });
-
-    resObjServer.on('end', () => {
-
-        try {
-
-            const parsedData = JSON.parse(rawData);
-
-            console.log(parsedData)
-
-        } catch (e) {
-            console.error(e.message)
-        }
-    })
-}
-
 // handle call back
-// REQUIRED but not returning from Twitter
-
+// never manged to this working
+// so I binned it
 app.get('/ath/twitter/cb', function(req, res) {
-
-    this_req.query.oauth_token = req.query.oauth_token;
-    this_oauth_verifier = req.query.oauth_verifier;
 
     console.log('req.query.oauth_token')
     console.log(req.query.oauth_token)
@@ -183,78 +127,78 @@ app.get('/ath/twitter/cb', function(req, res) {
     console.log('req.query.oauth_verifier')
     console.log(req.query.oauth_verifier)
 
+    this_req.query.oauth_token = req.query.oauth_token;
+    this_oauth_verifier = req.query.oauth_verifier;
+
     res.send('Twitter Called Back');
 
 });
 
 
-// get tweets here
-// auth logic for displaying Tweest of UsersID
+var checkForTweets = new Promise(function(resolve, reject) {
+    resolve('Success!');
+    reject('Failed');
+});
+
+
+async function getTweets(locAuth, locId) {
+    try {
+        await locAuth.get(
+            'https://api.twitter.com/1.1/search/tweets.json?q=' + locId,
+            '1013516560286265345-m49rWxpkOAe67YNLL9CeLVEXlQYOPB', // user token for this app
+            'F2GBSZNQ7ErekyJMwlaPGVNzXarbkOL8zSVNdcKUXz3VT', // user secret for this app
+            function (e, data, res){
+                if (e) console.error(e);
+                console.log('ASYN sync call here');
+                console.log(JSON.stringify(require('util').inspect(data)));
+            });
+    } catch (e) {
+        console.error(e); // 💩
+    }
+};
+
 app.get('/tweets', ensureLoggedIn('/login'), function(req, res) {
 
     var start = Date.now();
-  
-/*
-    console.log('this_oauth_token')
-    console.log(this_oauth_token)
 
-    console.log('this_oauth_verifier')
-    console.log(this_oauth_verifier)
+    var user_id = req.query.id;
 
-    console.log('req.accessToken.id')
-    console.log(req.accessToken.id)
+    var thisOAuth = new OAuth.OAuth(
+        'https://api.twitter.com/oauth/request_token',
+        'https://api.twitter.com/oauth/access_token',
+        'eFmyCHQVhC5atiLAis6tStTkD',  // your APPS consumer API key
+        'h5WaGdejXcW0woOZSnot8q07liBRKcqE8cnJeCO22voGYLUNsw', // your APPS Twitter application secret'
+        '1.0A',
+        null,
+        'HMAC-SHA1'
+    );
 
-    console.log('app.models.accessToken.id')
-    console.log(app.models.accessToken.id)
-*/
-    var user_id = req.query.id
-    
-    const options = {
-        hostname: 'api.twitter.com',
-        port: 443,
-        path: '/1.1/search/tweets.json?q=' + user_id,
-        method: 'GET'
-    }
+    getTweets(thisOAuth, user_id);
 
-    console.log(options);
+    thisOAuth.get(
+        'https://api.twitter.com/1.1/search/tweets.json?q=' + user_id,
+        // 'https://api.twitter.com/1.1/trends/place.json?id=23424977',  // trends
+        '1013516560286265345-m49rWxpkOAe67YNLL9CeLVEXlQYOPB', // user token for this app
+        'F2GBSZNQ7ErekyJMwlaPGVNzXarbkOL8zSVNdcKUXz3VT', // user secret for this app
+        function (e, data, res){
+            if (e) console.error(e);
+            // responseStr = JSON.stringify(require('util').inspect(data));
+            console.log('sync call here');
+            console.log(require('util').inspect(data));
+        });
 
-    var authTkn = encodeURIComponent('1013516560286265345-m49rWxpkOAe67YNLL9CeLVEXlQYOPB');
+    checkForTweets
+        .then(function(value) {
+        console.log(value);
+        // expected output: "Success!"
+    });
 
-    var consumerApiKey = encodeURIComponent('eFmyCHQVhC5atiLAis6tStTkD');
-
-
-    req.accessToken.id
-    var OAuthTokenSecret = encodeURIComponent(req.accessToken.id);
-    // var OAuthTokenSecret = encodeURIComponent('F2GBSZNQ7ErekyJMwlaPGVNzXarbkOL8zSVNdcKUXz3VT');
-
-    var timestamp = Math.floor(start / 1000)
-
-    var reqObjServer = https.request(options, callback)
-
-    reqObjServer.setHeader('user-agent', 'OAuth gem v0.4.4')
-    reqObjServer.setHeader('Content-Type', 'application/x-www-form-urlencoded')
-    // reqObjServer.setHeader('accept','application/json')
-
-    let urlTwitter = encodeURIComponent('https://api.twitter.com/1.1/search/tweets.json?q=' + user_id);
-
-    const OAuthOnce = guid();
-
-    const authData = encodeURIComponent('GET&' + urlTwitter + '&oauth_consumer_key=' + consumerApiKey + '&oauth_nonce=' + OAuthOnce + '&oauth_signature_method=HMAC-SHA1&oauth_timestamp=' + timestamp + '&oauth_token=' + authTkn + '&oauth_version=1.0')
-
-    var authSig = encodeURIComponent(hmacsha1(consumerApiKey +  "&" + OAuthTokenSecret, authData));
-
-    var authStr = 'OAuth oauth_consumer_key="' + consumerApiKey + '", oauth_nonce="'  + OAuthOnce + '", oauth_signature="' + authSig + '", oauth_signature_method="HMAC-SHA1", oauth_timestamp="' + timestamp + '", oauth_token="' + authTkn + '", oauth_version="1.0"';
-
-
-    console.log(authStr);
-
-    reqObjServer.setHeader('Authorization', authStr);
-
-    reqObjServer.end()
-    res.send("Completed Request - [TWEEETS TO SHOW HERE IF AUTH SUCCESSFUL]");
+    res.send(responseStr);
 
 });
 
+
+// not used !
 function guid() {
     function s4() {
         return Math.floor((1 + Math.random()) * 0x10000)
