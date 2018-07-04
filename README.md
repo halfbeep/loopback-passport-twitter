@@ -1,4 +1,10 @@
-copy of std loopback assport implementation for end points to post/get Tweets
+#Work in progress 
+
+API Usage /tweets?id=TwitterUsername
+
+Will prompt for passport auth using any social log on
+
+Copy of std loopback assport implementation for end points to post/get Tweets
 
 # loopback-example-passport
 
