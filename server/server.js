@@ -1,19 +1,27 @@
 // Copyright IBM Corp. 2014,2016. All Rights Reserved.
 // Node module: loopback-example-passport
 // This file is licensed under the MIT License.
-// License text available at https://opensource.org/licenses/MIT
+// License text available at https://opensour/authce.org/licenses/MIT
 'use strict';
-
 var loopback = require('loopback');
 var boot = require('loopback-boot');
 var app = module.exports = loopback();
 var cookieParser = require('cookie-parser');
 var session = require('express-session');
+var hmacsha1 = require('hmacsha1');
 
 // Passport configurators..
 var loopbackPassport = require('loopback-component-passport');
 var PassportConfigurator = loopbackPassport.PassportConfigurator;
 var passportConfigurator = new PassportConfigurator(app);
+
+// Shaun 3 July 2018
+// added http modules to get Tweets
+const http = require('http')
+const https = require('https')
+
+let this_oauth_token = 'blank_auth_toke'
+let this_oauth_verifier = 'blank_auth_verifier'
 
 /*
  * body-parser is a piece of express middleware that
@@ -43,6 +51,11 @@ try {
 }
 
 // -- Add your pre-processing middleware here --
+/*
+app.use(loopback.token({
+    model: app.models.accessToken
+}));
+*/
 
 // Setup the view engine (jade)
 var path = require('path');
@@ -93,6 +106,164 @@ app.get('/', function(req, res, next) {
     url: req.url,
   });
 });
+
+app.get('/privacy', function(req, res, next) {
+  res.render('pages/privacyPolicy', {user:
+    req.user,
+    url: req.url,
+  });
+});
+
+const callback = function (resObjServer) {ensureLoggedIn('/login')
+
+    const {statusCode} = resObjServer;
+
+    const contentType = resObjServer.headers['Content-type']
+
+    let error
+
+    if (statusCode !== 200) {
+        error = new Error('Request Failed.\n' +
+            `Status Code: ${statusCode}`)
+
+    } else if (!/^application\/json/.test(contentType)) {
+        error = new Error('Invalid content-type.\n' +
+            `Expected application/json but received ${contentType}`)
+
+    }
+    if (error) {
+
+        console.error(error.message);
+
+        console.error(error);
+
+        // res.send(error);
+
+        // consume response data to free up memory
+        resObjServer.resume();
+
+        return;
+
+    }
+
+
+    resObjServer.setEncoding('utf8');
+
+    let rawData = '';
+
+    resObjServer.on('data', (chunk) => {
+        rawData += chunk;
+    });
+
+    resObjServer.on('end', () => {
+
+        try {
+
+            const parsedData = JSON.parse(rawData);
+
+            console.log(parsedData)
+
+        } catch (e) {
+            console.error(e.message)
+        }
+    })
+}
+
+// handle call back
+// REQUIRED but not returning from Twitter
+
+app.get('/ath/twitter/cb', function(req, res) {
+
+    this_req.query.oauth_token = req.query.oauth_token;
+    this_oauth_verifier = req.query.oauth_verifier;
+
+    console.log('req.query.oauth_token')
+    console.log(req.query.oauth_token)
+
+    console.log('req.query.oauth_verifier')
+    console.log(req.query.oauth_verifier)
+
+    res.send('Twitter Called Back');
+
+});
+
+
+// get tweets here
+// auth logic for displaying Tweest of UsersID
+app.get('/tweets', ensureLoggedIn('/login'), function(req, res) {
+
+    var start = Date.now();
+  
+/*
+    console.log('this_oauth_token')
+    console.log(this_oauth_token)
+
+    console.log('this_oauth_verifier')
+    console.log(this_oauth_verifier)
+
+    console.log('req.accessToken.id')
+    console.log(req.accessToken.id)
+
+    console.log('app.models.accessToken.id')
+    console.log(app.models.accessToken.id)
+*/
+    var user_id = req.query.id
+    
+    const options = {
+        hostname: 'api.twitter.com',
+        port: 443,
+        path: '/1.1/search/tweets.json?q=' + user_id,
+        method: 'GET'
+    }
+
+    console.log(options);
+
+    var authTkn = encodeURIComponent('1013516560286265345-m49rWxpkOAe67YNLL9CeLVEXlQYOPB');
+
+    var consumerApiKey = encodeURIComponent('eFmyCHQVhC5atiLAis6tStTkD');
+
+
+    req.accessToken.id
+    var OAuthTokenSecret = encodeURIComponent(req.accessToken.id);
+    // var OAuthTokenSecret = encodeURIComponent('F2GBSZNQ7ErekyJMwlaPGVNzXarbkOL8zSVNdcKUXz3VT');
+
+    var timestamp = Math.floor(start / 1000)
+
+    var reqObjServer = https.request(options, callback)
+
+    reqObjServer.setHeader('user-agent', 'OAuth gem v0.4.4')
+    reqObjServer.setHeader('Content-Type', 'application/x-www-form-urlencoded')
+    // reqObjServer.setHeader('accept','application/json')
+
+    let urlTwitter = encodeURIComponent('https://api.twitter.com/1.1/search/tweets.json?q=' + user_id);
+
+    const OAuthOnce = guid();
+
+    const authData = encodeURIComponent('GET&' + urlTwitter + '&oauth_consumer_key=' + consumerApiKey + '&oauth_nonce=' + OAuthOnce + '&oauth_signature_method=HMAC-SHA1&oauth_timestamp=' + timestamp + '&oauth_token=' + authTkn + '&oauth_version=1.0')
+
+    var authSig = encodeURIComponent(hmacsha1(consumerApiKey +  "&" + OAuthTokenSecret, authData));
+
+    var authStr = 'OAuth oauth_consumer_key="' + consumerApiKey + '", oauth_nonce="'  + OAuthOnce + '", oauth_signature="' + authSig + '", oauth_signature_method="HMAC-SHA1", oauth_timestamp="' + timestamp + '", oauth_token="' + authTkn + '", oauth_version="1.0"';
+
+
+    console.log(authStr);
+
+    reqObjServer.setHeader('Authorization', authStr);
+
+    reqObjServer.end()
+    res.send("Completed Request - [TWEEETS TO SHOW HERE IF AUTH SUCCESSFUL]");
+
+});
+
+function guid() {
+    function s4() {
+        return Math.floor((1 + Math.random()) * 0x10000)
+            .toString(16)
+            .substring(1);
+    }
+    return s4() + s4() + 'x' + s4() + 'x' + s4() + 'x' + s4() + 'x' + s4() + s4() + s4();
+}
+
 
 app.get('/auth/account', ensureLoggedIn('/login'), function(req, res, next) {
   res.render('pages/loginProfiles', {
@@ -167,10 +338,10 @@ app.start = function() {
   return app.listen(function() {
     app.emit('started');
     var baseUrl = app.get('url').replace(/\/$/, '');
-    console.log('Web server listening at: %s', baseUrl);
+    console.log('web server listening at: %s', baseUrl);
     if (app.get('loopback-component-explorer')) {
       var explorerPath = app.get('loopback-component-explorer').mountPath;
-      console.log('Browse your REST API at %s%s', baseUrl, explorerPath);
+      console.log('browse your REST API at %s%s', baseUrl, explorerPath);
     }
   });
 };
